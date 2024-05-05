@@ -1,6 +1,12 @@
-use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{
+    get,
+    middleware::Logger,
+    web::{self, ServiceConfig},
+    HttpResponse, Responder,
+};
 use badge::{ChessBadge, GameMode};
 use serde::Deserialize;
+use shuttle_actix_web::ShuttleActixWeb;
 
 mod badge;
 mod chess_com;
@@ -47,10 +53,15 @@ async fn chesscom_provider(query: web::Query<Info>) -> impl Responder {
         })
 }
 
-#[actix_web::main]
-async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| App::new().service(chesscom_provider))
-        .bind(("127.0.0.1", 3000))?
-        .run()
-        .await
+#[shuttle_runtime::main]
+async fn main() -> ShuttleActixWeb<impl FnOnce(&mut ServiceConfig) + Send + Clone + 'static> {
+    let config = move |cfg: &mut ServiceConfig| {
+        cfg.service(
+            web::scope("")
+                .wrap(Logger::default())
+                .service(chesscom_provider),
+        );
+    };
+
+    Ok(config.into())
 }
